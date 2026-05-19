@@ -8,11 +8,16 @@ def load_model() -> SentenceTransformer:
     print(f"Loading embedding model '{MODEL_NAME}'")
     return SentenceTransformer(MODEL_NAME)
 
-def load_books(path: str = "books.json") -> list[dict]:
+def load_books(path: str = "all_books.json") -> list[dict]:
     if not Path(path).exists():
-        raise FileNotFoundError(f"No books file found at '{path}'. run the ingestion pipeline first")
+        raise FileNotFoundError(f"No books file found at '{path}'. Run the ingestion pipeline first.")
     with open(path) as f:
-        return json.load(f)
+        content = f.read().strip()
+    if not content:
+        return []
+    if content.startswith("["):
+        return json.loads(content)
+    return [json.loads(line) for line in content.splitlines() if line.strip()]
     
 def embed_books(books: list[dict], model: SentenceTransformer, batch_size: int = 64) -> list[dict]:
     print(f"Embedding {len(books)} books in batches of {batch_size}...")

@@ -49,13 +49,29 @@ def find_similar_books(
 async def get_or_fetch_books(
     title: str, model: SentenceTransformer, client: QdrantClient, api_key: str
 ) -> dict | None:
-    # first try to find the book in Qdranr
+    # 1. Exact title match
     book = get_book_by_title(title, client)
     if book:
         print(f"Found '{title}' in Qdrant")
         return book
 
-    # Not found - then fetch the book from Google Books API
+    # 2. Semantic match - embed query and find closest title
+    query_vector = model.encode(title).tolist()
+    candidates = client.query_points(
+        collection_name=COLLECTION_NAME, query=query_vector, limit=5
+    ).points
+
+    query_words = set(title.lower().split())
+    for candidate in candidates:
+        stored_title = candidate.payload.get("title", "").lower()
+        word_overlap = sum(1 for w in query_words if w in stored_title)
+        if word_overlap / len(query_words) >= 0.6 and candidate.score > 0.7:
+            print(
+                f"Found '{title}' in Qdrant (semantic -> '{candidate.payload['title']})"
+            )
+            return {**candidate.payload, "vector": candidate.vector}
+
+    # 3. Fall back to Google Books
     print(f"'{title}' not in Qdrant, fetching from Google Books...")
     from ingestion.google_books_client import fetch_books
 

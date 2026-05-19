@@ -1,5 +1,11 @@
 from qdrant_client import QdrantClient
-from qdrant_client.models import Distance, VectorParams, PointStruct
+from qdrant_client.models import (
+    Distance,
+    TextIndexParams,
+    TokenizerType,
+    VectorParams,
+    PointStruct,
+)
 import uuid
 
 COLLECTION_NAME = "books"
@@ -47,3 +53,14 @@ def upsert_books(client: QdrantClient, books: list[dict]):
     ]
 
     client.upsert(collection_name=COLLECTION_NAME, points=points)
+
+
+def create_title_index(client: QdrantClient):
+    client.delete_payload_index(collection_name=COLLECTION_NAME, field_name="title")
+    client.create_payload_index(
+        collection_name=COLLECTION_NAME,
+        field_name="title",
+        field_schema=TextIndexParams(
+            type="text", tokenizer=TokenizerType.PREFIX, lowercase=True
+        ),
+    )

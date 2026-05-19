@@ -96,3 +96,24 @@ async def fetch_books(
             await asyncio.sleep(wait)
 
     return []
+
+
+async def fetch_book_by_isbn(isbn: str, api_key: str) -> Book | None:
+    params = {
+        "q": f"isbn:{isbn}",
+        "key": api_key,
+        "maxResults": 1,
+        "printType": "books",
+    }
+    async with httpx.AsyncClient(timeout=10) as client:
+        response = await client.get(GOOGLE_BOOKS_URL, params=params)
+        if response.status_code != 200:
+            print(f"Failed to fetch book for ISBN {isbn}: {response.status_code}")
+            return None
+
+        items = response.json().get("items", [])
+        if not items:
+            print(f"No book found for ISBN {isbn}")
+            return None
+
+        return parse_book(items[0])

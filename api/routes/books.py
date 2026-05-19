@@ -6,6 +6,9 @@ from services.explainer import explain_similarity
 from services.taste_profile import discover_books
 from db.ratings import save_rating
 from api.dependencies import client, model
+from qdrant_client.models import FieldCondition, Filter, MatchText
+
+from vectordb.client import COLLECTION_NAME
 
 router = APIRouter()
 
@@ -45,14 +48,31 @@ async def recommend(request: RecommendRequest):
         limit=request.limit,
     )
 
-    explanations = [
-        {**similar_book, "explanation": explain_similarity(book, similar_book)}
-        for similar_book in similar_books
-    ]
+    import asyncio
+
+    def safe_explain(book_a, book_b):
+        try:
+            return explain_similarity(book_a, book_b)
+        except Exception:
+            return {
+                "simialr": [],
+                "different": [],
+                "recommended_because": "Similar themes and writing style.",
+            }
+
+    explanations = await asyncio.gather(
+        *[
+            asyncio.to_thread(safe_explain, book, similar_book)
+            for similar_book in similar_books
+        ]
+    )
 
     return {
         "query_book": {k: v for k, v in book.items() if k != "vector"},
-        "recommendations": explanations,
+        "recommendations": [
+            {**similar_book, "explanation": explanation}
+            for similar_book, explanation in zip(similar_books, explanations)
+        ],
     }
 
 
@@ -94,3 +114,26 @@ def discover(limit: int = 5):
 async def explain(book_a: dict, book_b: dict):
     explanation = explain_similarity(book_a, book_b)
     return explanation
+
+
+@router.get("/suggest")
+def suggest(q: str, limit: int = 6):
+    if len(q.strip()) < 2:
+        return {"suggestions": []}
+
+    results = client.scroll(
+        collection_name=COLLECTION_NAME,
+        scroll_filter=Filter(
+            must=[FieldCondition(key="title", match=MatchText(text=q.lower()))]
+        ),
+        limit=limit,
+        with_payload=["title", "authors"],
+        with_vectors=False,
+    )[0]
+
+    return {
+        "suggestions": [
+            {"title": p.payload["title"], "authors": p.payload["authors"]}
+            for p in results
+        ]
+    }
