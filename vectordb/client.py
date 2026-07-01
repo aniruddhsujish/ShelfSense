@@ -7,13 +7,18 @@ from qdrant_client.models import (
     PointStruct,
 )
 import uuid
+import os
 
 COLLECTION_NAME = "books"
 VECTOR_SIZE = 384  # dimension output of sentence-transformers all-MiniLM-L6-v2 model
 
 
 def get_client() -> QdrantClient:
-    return QdrantClient(path="./qdrant_storage")
+    url = os.getenv("QDRANT_URL")
+    api_key = os.getenv("QDRANT_API_KEY")
+    if url and api_key:
+        return QdrantClient(url=url, api_key=api_key)
+    return QdrantClient(path="./qdrant_storage")  # Still keeping local as a fallback
 
 
 def create_collection(client: QdrantClient):
