@@ -9,7 +9,6 @@ interface Book {
   authors: string[];
   description: string;
   thumbnail: string;
-  score: string;
   explanation: {
     similar: string[];
     different: string[];
@@ -33,6 +32,14 @@ export default function Home() {
   const [suggestions, setSuggestions] = useState<
     { title: string; authors: string[] }[]
   >([]);
+  const [settings, setSettings] = useState(() => {
+    try {
+      const saved = localStorage.getItem("shelfsense_settings");
+      return saved ? JSON.parse(saved) : { autoLike: true, hideSeries: false };
+    } catch {
+      return { autoLike: true, hideSeries: false };
+    }
+  });
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const suggestCache = useRef<
@@ -42,6 +49,12 @@ export default function Home() {
   useEffect(() => {
     handleDiscover();
   }, []);
+
+  function updateSettings(key: string, value: boolean) {
+    const updated = { ...settings, [key]: value };
+    setSettings(updated);
+    localStorage.setItem("shelfsense_settings", JSON.stringify(updated));
+  }
 
   async function handleSearch(searchTitle?: string) {
     const titleToSearch = searchTitle ?? query;
@@ -54,7 +67,11 @@ export default function Home() {
       const response = await fetch("http://localhost:8000/api/recommend", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: titleToSearch, limit: 5 }),
+        body: JSON.stringify({
+          title: titleToSearch,
+          limit: 5,
+          hide_series: settings.hideSeries,
+        }),
       });
 
       if (!response.ok) {
@@ -65,7 +82,9 @@ export default function Home() {
       const data = await response.json();
       setResults(data);
 
-      await handleRate(data.query_book.book_id, data.query_book.title, 1);
+      if (settings.autoLike) {
+        await handleRate(data.query_book.book_id, data.query_book.title, 1);
+      }
     } catch {
       setError("Could not connect to server");
     } finally {
@@ -216,6 +235,30 @@ export default function Home() {
                 )}
               </div>
 
+              <div className="flex gap-6 mt-4">
+                <label className="flex items-center gap-2 text-sm text-gray-400 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={settings.autoLike}
+                    onChange={(e) =>
+                      updateSettings("autoLike", e.target.checked)
+                    }
+                    className="accent-blue-500"
+                  />
+                  Auto-like searched books
+                </label>
+                <label className="flex items-center gap-2 text-sm text-gray-400 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={settings.hideSeries}
+                    onChange={(e) =>
+                      updateSettings("hideSeries", e.target.checked)
+                    }
+                    className="accent-blue-500"
+                  />
+                  Hide sequels/ prequels
+                </label>
+              </div>
               {error && <p className="text-red-500 text-sm mt-3">{error}</p>}
             </div>
 
@@ -269,9 +312,6 @@ export default function Home() {
                           <h3 className="font-semibold text-white">
                             {book.title}
                           </h3>
-                          <span className="text-xs text-indigo-400 bg-indigo-950 px-2.5 py-0.5 rounded-full font-medium">
-                            {Math.round(Number(book.score) * 100)}% match
-                          </span>
                         </div>
                         <p className="text-gray-500 text-sm mb-3">
                           {book.authors.join(", ")}

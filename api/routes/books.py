@@ -16,6 +16,7 @@ router = APIRouter()
 class RecommendRequest(BaseModel):
     title: str
     limit: int = 5
+    hide_series: bool = False
 
 
 class RateRequest(BaseModel):
@@ -45,7 +46,7 @@ async def recommend(request: RecommendRequest):
         query_vector=book["vector"],
         client=client,
         exclude_title=request.title,
-        limit=request.limit,
+        limit=request.limit + 5,
     )
 
     import asyncio
@@ -72,7 +73,8 @@ async def recommend(request: RecommendRequest):
         "recommendations": [
             {**similar_book, "explanation": explanation}
             for similar_book, explanation in zip(similar_books, explanations)
-        ],
+            if not (request.hide_series and explanation.get("is_same_series"))
+        ][: request.limit],
     }
 
 
