@@ -64,15 +64,18 @@ export default function Home() {
     setResults(null);
 
     try {
-      const response = await fetch("http://localhost:8000/api/recommend", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: titleToSearch,
-          limit: 5,
-          hide_series: settings.hideSeries,
-        }),
-      });
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/recommend`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: titleToSearch,
+            limit: 5,
+            hide_series: settings.hideSeries,
+          }),
+        },
+      );
 
       if (!response.ok) {
         setError("Book not found. Try a different title.");
@@ -94,7 +97,7 @@ export default function Home() {
 
   async function handleRate(bookId: string, title: string, rating: number) {
     setRatings((prev) => ({ ...prev, [bookId]: rating }));
-    await fetch("http://localhost:8000/api/rate", {
+    await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/rate`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ book_id: bookId, title, rating }),
@@ -105,7 +108,7 @@ export default function Home() {
     setDiscoverLoading(true);
     try {
       const response = await fetch(
-        "http://localhost:8000/api/discover?limit=5",
+        `${process.env.NEXT_PUBLIC_API_URL}/api/discover?limit=5`,
       );
       const data = await response.json();
       setDiscoverResults(data?.books ?? []);
@@ -130,7 +133,7 @@ export default function Home() {
 
     try {
       const resp = await fetch(
-        `http://localhost:8000/api/suggest?q=${encodeURIComponent(value)}`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/suggest?q=${encodeURIComponent(value)}`,
         { signal: abortRef.current.signal },
       );
       const data = await resp.json();
