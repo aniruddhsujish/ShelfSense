@@ -5,6 +5,7 @@ from qdrant_client.models import (
     TokenizerType,
     VectorParams,
     PointStruct,
+    PayloadSchemaType,
 )
 import uuid
 import os
@@ -68,4 +69,9 @@ def create_title_index(client: QdrantClient):
         field_schema=TextIndexParams(
             type="text", tokenizer=TokenizerType.PREFIX, lowercase=True
         ),
+    )
+    client.create_payload_index(
+        collection_name=COLLECTION_NAME,
+        field_name="title",
+        field_schema=PayloadSchemaType.KEYWORD,
     )
