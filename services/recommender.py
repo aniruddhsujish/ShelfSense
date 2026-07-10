@@ -98,5 +98,6 @@ async def get_or_fetch_books(
     upsert_books(client, [book_data])
     print(f"Stored '{book_data['title']}' in Qdrant for future lookups")
 
+    book_data["book_id"] = book_data.get("id", "")
     book_data["vector"] = embedding
     return book_data
